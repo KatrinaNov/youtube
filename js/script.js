@@ -90,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
     }
-
     
     const youtuber = () => { 
        const youtuberItems = document.querySelectorAll('[data-youtuber]');
@@ -122,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-       
 
        youtuberItems.forEach(elem => {
         elem.addEventListener('click', ()=> {
@@ -154,7 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `);
         youtuber();
      }
-
 
     // API
     {
@@ -192,14 +189,57 @@ document.addEventListener('DOMContentLoaded', () => {
         //request
         {
             const gloTube = document.querySelector('.logo-academy');
+            const main = document.getElementById('main');
             const trends = document.getElementById('yt_trend');
             const like = document.getElementById('like');
+            const subscriptions = document.getElementById('subscriptions');
+            const searchForm  = document.querySelector('.search-form');
+
             const request = options => gapi.client.youtube[options.method]
             .list(options)
             .then(response => response.result.items)
-            .then(render)
-            .then(youtuber)
+            .then(data => options.method === 'subscriptions' ? renderSub(data) : render(data))
             .catch(err => console.error('Во время запроса произошла ошибка: ' + err));
+
+            const renderSub = data => {
+                const ytWrapper = document.getElementById('yt-wrapper');
+                ytWrapper.textContent = '';
+                data.forEach(item => {
+                    try {   
+                     const {snippet:{
+                         title, 
+                         description,
+                        resourceId: {
+                            channelId
+                        },
+                        thumbnails:{high:{url}}
+                        }
+                    } = item;
+                    ytWrapper.innerHTML += `
+                    <div class="yt" data-youtuber="${channelId}">
+                        <div class="yt-thumbnail" style="--aspect-ratio:16/9;">
+                            <img src="${url}" alt="thumbnail" class="yt-thumbnail__img">
+                        </div>
+                        <div class="yt-title">${title}</div>
+                        <div class="yt-channel">${description}</div>
+                    </div>
+                    `;
+                    } catch (err) {
+                        console.error(err);
+                    }
+                });
+                ytWrapper.querySelectorAll('.yt').forEach(item => {
+                    item.addEventListener('click', () => {
+                        request({
+                            method: 'search',
+                            part: 'snippet',
+                            channelId: item.dataset.youtuber,
+                            order: 'date',
+                            maxResults: 6,
+                        })
+                    })
+                });
+            };
 
             const render = data => {
                 const ytWrapper = document.getElementById('yt-wrapper');
@@ -228,7 +268,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (err) {
                         console.error(err);
                     }
-                })
+                });
+                youtuber();
             };
 
             gloTube.addEventListener('click', () => {
@@ -257,8 +298,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     maxResults: 6,
                 })
             });
+            subscriptions.addEventListener('click', () => {
+                request({
+                    method: 'subscriptions',
+                    part: 'snippet',
+                    mine: true,
+                    maxResults: 6,
+                })
+            });
+
+            searchForm.addEventListener('submit', event => {
+                event.preventDefault();
+                const valueInput = searchForm.elements[0].value;
+
+                if (!valueInput) {
+                    searchForm.style.border = '1px solid red';
+                    return;
+                }
+                searchForm.style.border = '';
+                request({
+                    method: 'search',
+                    part: 'snippet',
+                    order: 'relevance',
+                    maxResults: 6,
+                    q: valueInput
+                })
+                searchForm.elements[0].value = '';
+            });
             
         }
     }
-
 });
